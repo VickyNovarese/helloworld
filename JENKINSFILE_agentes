@@ -34,7 +34,7 @@ pipeline {
                                         pytest --junitxml=result-unit.xml test\\unit
                                     '''
                                     stash name:'unit-res',includes:'result-unit.xml'
-                                    delete dir//borra todo el contenido del workspace
+                                    
                                 }
                             }
                 }
