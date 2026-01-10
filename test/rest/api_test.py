@@ -24,6 +24,47 @@ class TestApi(unittest.TestCase):
         self.assertEqual(
             response.read().decode(), "3", "ERROR ADD"
         )
+     def test_api_substract(self):
+        url = f"{BASE_URL}/calc/substract/6/2"
+        response = urlopen(url, timeout=DEFAULT_TIMEOUT)
+        self.assertEqual(
+            response.status, http.client.OK, f"Error en la petición API a {url}"
+        )
+        self.assertEqual(
+            response.read().decode(), "4", "ERROR SUBSTRACT"
+        )
+       def test_api_multiply(self):
+        url = f"{BASE_URL}/calc/add/1/2"
+        response = urlopen(url, timeout=DEFAULT_TIMEOUT)
+        self.assertEqual(
+            response.status, http.client.OK, f"Error en la petición API a {url}"
+        )
+        self.assertEqual(
+            response.read().decode(), "2", "ERROR MULTIPLY"
+        )   
+
+         def test_api_divide(self):
+        url = f"{BASE_URL}/calc/add/6/2"
+        response = urlopen(url, timeout=DEFAULT_TIMEOUT)
+        self.assertEqual(
+            response.status, http.client.OK, f"Error en la petición API a {url}"
+        )
+        self.assertEqual(
+            response.read().decode(), "3", "ERROR DIVIDE"
+        )
+
+      def test_api_divide_by_zero(self):
+    url = f"{BASE_URL}/calc/divide/6/0"
+    try:
+        urlopen(url, timeout=DEFAULT_TIMEOUT)
+        self.fail(f"Se esperaba error HTTP al dividir por cero en {url}")
+        except HTTPError as e:
+        self.assertEqual(
+            e.code, 406, f"Status inesperado en la petición API a {url}"
+        )
+        self.assertEqual(
+            e.read().decode(), "", "ERROR DIVIDE BY ZERO"
+        )
 
     def test_api_sqrt(self):
         url = f"{BASE_URL_MOCK}/calc/sqrt/64"
