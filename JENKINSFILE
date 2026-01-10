@@ -39,8 +39,8 @@ pipeline {
                         catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                             bat '''
                                 set FLASK_APP=app\\api.py
-                                start flask run
-                                start java -jar C:\\Users\\Virginia Novarese\\Documents\\curso devops\\helloworld\\helloworld\\test\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir test\\wiremock
+                                start /B python -m flask run
+                                start /B java -jar C:\\Users\\Virginia Novarese\\Documents\\curso devops\\helloworld\\helloworld\\test\\wiremock\\wiremock-standalone-3.13.2.jar --port 9090 --root-dir test\\wiremock
                                 
                                 ping -n 45 127.0.0.1
                                 
