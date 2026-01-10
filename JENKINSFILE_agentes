@@ -1,0 +1,72 @@
+pipeline {
+    agent any
+    options{skipDefaultCheckout()} //para que no se descargue en todos los agentes de código fuente
+     stages {
+        stage('Get Code') {
+            steps {
+                // Obtener código del repo
+                git 'https://github.com/VickyNovarese/helloworld'
+                bat 'dir'
+                echo WORKSPACE
+                stash name: 'code', includes:'**' //guardo el código fuente porque las pruebas las realizo en otro servidor y debo pasarle el código
+            }
+        }
+    
+        stage('Build') {
+           steps {
+              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
+           }
+        }
+        
+        stage('Tests')
+        {
+            parallel
+            {
+
+                stage('Unit') {
+                    agent{label'Agente 1'}
+                            steps {
+                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                     
+                                    unstash name: 'code' //me traigo el código fuente, lo descargo
+                                    bat '''
+                                        set PYTHONPATH=%WORKSPACE%
+                                        pytest --junitxml=result-unit.xml test\\unit
+                                    '''
+                                    stash name:'unit-res',includes:'result-unit.xml'
+                                    delete dir//borra todo el contenido del workspace
+                                }
+                            }
+                }
+                
+                        
+                stage('Rest') {
+                    agent{ label 'Agente 2'}
+                    steps {
+                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                            unstash name:'code'
+                            bat '''
+                                set FLASK_APP=app\\api.py
+                                start flask run
+                                start java -jar C:\\UNIR\\Ejercicios\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir test\\wiremock
+                                
+                                ping -n 15 127.0.0.1
+                                
+                               python -m pytest --junitxml=result-rest.xml test\\rest
+                            '''
+                        }
+                        stash name:'rest-res', includes:'result-rest.xml'
+                    }
+                }        
+            }
+        }
+        
+        stage ('Results') {
+            steps {
+                unstash name:'unit-res'
+                unstash name:'rest-res'
+                junit 'result*.xml'
+            }
+        }        
+     }
+} 
