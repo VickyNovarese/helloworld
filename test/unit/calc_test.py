@@ -41,8 +41,11 @@ class TestCalculate(unittest.TestCase):
         self.assertRaises(TypeError, self.calc.divide, object(), 2)
         self.assertRaises(TypeError, self.calc.divide, 2, object())
 
-    def test_divide_method_fails_division_by_zero(self):
-       self.assertRaises(TypeError, self.calc.divide, 2, 0)
+   
+
+    def test_divide_by_zero_raises(self):
+        self.assertRaises(TypeError, self.calc.divide, 2, 0)
+
 
     def test_multiply_method_returns_correct_result(self):
         self.assertEqual(4, self.calc.multiply(2, 2))
@@ -98,7 +101,8 @@ class TestCalculate(unittest.TestCase):
         self.assertRaises(TypeError, self.calc.power, object(), 2)
         self.assertRaises(TypeError, self.calc.power, 2, object())    
 
-      
+   if __name__ == "__main__":  # pragma: no cover
+    unittest.main()   
 
      
 
