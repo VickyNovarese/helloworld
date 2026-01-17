@@ -5,7 +5,8 @@ pipeline {
 
     stage('Get Code') {
       steps {
-        git 'https://github.com/VickyNovarese/helloworld.git'
+        cleanWs()
+        checkout scm
         bat 'dir'
         echo "WORKSPACE: ${env.WORKSPACE}"
       }
