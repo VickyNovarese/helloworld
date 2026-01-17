@@ -1,64 +1,145 @@
 pipeline {
-    agent any
+  agent any
 
-     stages {
-        stage('Get Code') {
-            steps {
-                // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
-                bat 'dir'
-                echo WORKSPACE
-            }
+  stages {
+
+    stage('Get Code') {
+      steps {
+        git 'https://github.com/VickyNovarese/helloworld.git'
+        bat 'dir'
+        echo "WORKSPACE: ${env.WORKSPACE}"
+      }
+    }
+
+    stage('Static') {
+      steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+          bat '''
+            python -m flake8 --format=pylint app > flake8.out
+          '''
         }
+
+        recordIssues(
+          tools: [flake8(pattern: 'flake8.out')],
+          sourceCodeRetention: 'LAST_BUILD',
+          unhealthy: 9, // 10+ => unhealthy (health/weather)
+          qualityGates: [[
+            criticality: 'UNSTABLE',
+            integerThreshold: 8,
+            type: 'TOTAL'
+          ]]
+        )
+      }
+    }
+
     
-        stage('Build') {
-           steps {
-              echo 'Eyyy, esto es Python. No hay que compilar nada!!!'
-           }
-        }
-        
-        stage('Tests')
-        {
-            parallel
-            {
+      
 
-                stage('Unit') {
-                            steps {
-                                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                                    bat '''
-                                        set PYTHONPATH=.
-                                        pytest --junitxml=result-unit.xml test\\unit
-                                    '''
-                                }
-                            }
-                }
-                
-                        
-                stage('Rest') {
-                    steps {
-                        catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                            bat '''
-                                set FLASK_APP=app\\api.py
-                                start /B python -m flask run
-                                start /B java -jar "C:\\cursodevops\\helloworld\\helloworld\\test\\wiremock\\wiremock-standalone-3.13.2.jar" --port 9090 --root-dir "test\\wiremock"
-
-                                netstat -ano | findstr :5000
-                                netstat -ano | findstr :9090
-
-                                ping -n 45 127.0.0.1
-                                
-                                pytest --junitxml=result-rest.xml test\\rest
-                            '''
-                        }
-                    }
-                }        
+        stage('Unit') {
+          steps {
+            // No quiero que esta etapa rompa el pipeline
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              bat '''
+                set PYTHONPATH=.
+                python -m coverage run --source=app --omit=app\\__init__.py -m pytest --junitxml=result-unit.xml test\\unit
+                python -m coverage xml -o coverage.xml
+              '''
             }
-        }
-        
-        stage ('Results') {
-            steps {
-                junit 'result*.xml'
+          }
+          post {
+            always {
+              junit testResults: 'result-unit.xml', skipMarkingBuildUnstable: true, allowEmptyResults: true
+              archiveArtifacts artifacts: 'coverage.xml', fingerprint: true
             }
-        }        
-     }
-} 
+          }
+        }
+
+        stage('Rest') {
+          steps {
+            // No quiero que esta etapa rompa el pipeline
+            catchError(buildResult: 'SUCCESS', stageResult: 'SUCCESS') {
+              bat '''
+                set FLASK_APP=app\\api.py
+                start /B python -m flask run
+                start /B java -jar "C:\\cursodevops\\helloworld\\helloworld\\test\\wiremock\\wiremock-standalone-3.13.2.jar" --port 9090 --root-dir "test\\wiremock"
+
+                ping -n 10 127.0.0.1:5000
+
+                pytest --junitxml=result-rest.xml test\\rest
+              '''
+            }
+          }
+          post {
+            always {
+              junit testResults: 'result-rest.xml', skipMarkingBuildUnstable: true, allowEmptyResults: true
+            }
+          }
+        }
+
+      
+    
+
+    stage('cobertura') {
+      steps {
+        // IMPORTANTE: si los quality gates marcan FAILURE, igual quiero que el pipeline siga
+        catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+          recordCoverage(
+            tools: [[parser: 'COBERTURA', pattern: 'coverage.xml']],
+            qualityGates: [
+              // LINE: <85 rojo, 85-95 amarillo, >=95 verde
+              [criticality: 'FAILURE',  metric: 'LINE',   threshold: 85.0],
+              [criticality: 'UNSTABLE', metric: 'LINE',   threshold: 95.0],
+
+              // BRANCH: <80 rojo, 80-90 amarillo, >=90 verde
+              [criticality: 'FAILURE',  metric: 'BRANCH', threshold: 80.0],
+              [criticality: 'UNSTABLE', metric: 'BRANCH', threshold: 90.0]
+            ]
+          )
+        }
+      }
+    }
+
+    stage('Security') {
+      steps {
+        bat '''
+          python -m pip install --upgrade pip
+          python -m pip install "bandit[sarif]"
+          python -m bandit --exit-zero -r . -f sarif -o bandit.sarif
+        '''
+
+        recordIssues(
+          tools: [sarif(pattern: 'bandit.sarif')],
+          sourceCodeRetention: 'LAST_BUILD',
+          unhealthy: 3, // 4+ => unhealthy (health/weather)
+          qualityGates: [[
+            criticality: 'UNSTABLE',
+            integerThreshold: 2,
+            type: 'TOTAL'
+          ]]
+        )
+      }
+    }
+
+    stage('Performance') {
+      steps {
+        catchError(buildResult: 'UNSTABLE', stageResult: 'UNSTABLE') {
+          bat '''
+            set FLASK_APP=app\\api.py
+            start /B python -m flask run
+            ping -n 10 127.0.0.1
+
+            C:\\cursodevops\\helloworld\\apache-jmeter-5.6.3\\apache-jmeter-5.6.3\\bin\\jmeter -n -t test\\jmeter\\flask.jmx -f -l flask.jtl
+            dir flask.jtl
+          '''
+        }
+      }
+      post {
+        always {
+          archiveArtifacts artifacts: 'flask.jtl', fingerprint: true
+          perfReport sourceDataFiles: 'flask.jtl'
+        }
+      }
+    }
+
+  }
+}
