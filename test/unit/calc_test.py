@@ -101,8 +101,11 @@ class TestCalculate(unittest.TestCase):
         self.assertRaises(TypeError, self.calc.power, object(), 2)
         self.assertRaises(TypeError, self.calc.power, 2, object())    
 
-   if __name__ == "__main__":  # pragma: no cover
-    unittest.main()   
+   	
+		if __name__ == "__main__":  # pragma: no cover
+		    calc = Calculator()
+		    result = calc.add(2, 2)
+		    print(result)
 
      
 
