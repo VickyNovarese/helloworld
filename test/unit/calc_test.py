@@ -5,6 +5,13 @@ from app.calc import Calculator
 
 
 @pytest.mark.unit
+
+
+def test_divide_by_zero_raises_function():
+    calc = Calculator()
+    with pytest.raises(TypeError):
+        calc.divide(2, 0)
+		
 class TestCalculate(unittest.TestCase):
     def setUp(self):
         self.calc = Calculator()
