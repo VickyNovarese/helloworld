@@ -107,7 +107,7 @@ pipeline {
           python -m bandit --exit-zero -r . -f sarif -o bandit.sarif
         '''
 
-        recordIssues(
+        recordIssues( enabledForFailure: true,
           tools: [sarif(pattern: 'bandit.sarif')],
           sourceCodeRetention: 'LAST_BUILD',
           unhealthy: 3, // 4+ => unhealthy (health/weather)
